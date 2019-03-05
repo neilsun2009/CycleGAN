@@ -7,81 +7,121 @@ import keras.backend as K
 import keras.layers as KL
 import keras.engine as KE
 import keras.models as KM
+import unet
+import original_net as original
+import time
+import data_utils
+import matplotlib.pyplot as plt
+import PIL
+from IPython.display import clear_output
 
-def downsample(x, filters, size, name, apply_batchnorm=True): # for both gen and disc
-  initializer = keras.initializers.RandomNormal(0, 0.02)
-  output = KL.Conv2D(filters, kernel_size=size, name=name,
-                      strides=2, padding='same', use_bias=False,
-                      kernel_initializer=initializer)(x)
-  if apply_batchnorm:
-    output = KL.BatchNormalization(training=True)(output) # always use training mode
-  output = KL.LeakyReLU()(output)
-  return output
+class CycleGAN():
 
-def gen_upsample(x, x2, filters, size, name, apply_dropout=False):
-  initializer = keras.initializers.RandomNormal(0, 0.02)
-  output = KL.Conv2DTranspose(filters, kernel_size=size,
-                           strides=2, padding='same', use_bias=False, name=name,
-                           kernel_initializer=initializer)(x)
-  output = KL.BatchNormalization(training=True)(output)
-  if apply_dropout:
-    output = KL.Dropout(rate=0.5, training=True)(output) # always use training mode
-  output = KL.ReLU()(output)
-  output = KL.Concatenate(axis=-1)([output, x2]) # skip connection
-  return output
+  def __init__(self, mode='train', base='unet', img_size=256, verbose=False):
+    assert mode in ['train', 'test']
+    assert base in ['unet', 'original']
+    self.mode = mode
+    self.base = unet if base == 'unet' else original
+    self.img_shape = (img_size, img_size, 3)
+    self.verbose = verbose
 
-def discriminator(x, y, name_base):
-  initializer = keras.initializers.RandomNormal(0, 0.02)
-  # like encode
-  output = KL.Concatenate(axis=-1)([x, y]) # 256
-  output = downsample(output, 64, 4, name_base + '_a', apply_batchnorm=False) # 128
-  output = downsample(output, 128, 4, name_base + '_b') # 64
-  output = downsample(output, 256, 4, name_base + '_c') # 32
-  # we are zero padding here with 1 because we need our shape to 
-  # go from (batch_size, 32, 32, 256) to (batch_size, 31, 31, 512)
-  # paddings = tf.constant([[0, 0], [1, 1], [1, 1], [0, 0]])
-  # output = tf.pad(output, paddings) # 34
-  output = K.spatial_2d_padding(output, padding=((1, 1), (1, 1)))
-  output = KL.Conv2D(512, kernel_size=4,
-                            strides=1, padding='valid', use_bias=False,
-                            kernel_initializer=initializer)(output) # 31
-  output = KL.BatchNormalization(training=True)(output)
-  output = KL.LeakyReLU()(output)
-  # padding same way
-  # output = tf.pad(output, paddings) # 33
-  output = K.spatial_2d_padding(output, padding=((1, 1), (1, 1)))
-  output = KL.Conv2D(1, kernel_size=4,
-                            strides=1, padding='valid',
-                            kernel_initializer=initializer)(output) # 30
-  # don't add a sigmoid activation here since
-  # the loss function expects raw logits.
-  # print(output)
-  return output
+  def build(self):
+    self.disc_a = self.build_discriminator('disc_a')
+    self.disc_b = self.build_discriminator('disc_b')
+    self.gen_a2b = self.build_generator('gen_a2b')
+    self.gen_b2a = self.build_generator('gen_b2a')
+    self.combined_a = self.build_combined(self.gen_a2b, self.gen_b2a, self.disc_b)
+    self.combined_b = self.build_combined(self.gen_b2a, self.gen_a2b, self.disc_a)
+    if self.verbose:
+      self.disc_a.summary()
+      self.disc_b.summary()
+      self.gen_a2b.summary()
+      self.gen_b2a.summary()
+      self.combined_a.summary()
+      self.combined_b.summary()
 
-def generator(x, name_base): # 256
-  # encode
-  x1 = downsample(x, 64, 4, name=name_base + '_down_a', apply_batchnorm=False) # 128
-  x2 = downsample(x1, 128, 4, name=name_base + '_down_b') # 64
-  x3 = downsample(x2, 256, 4, name=name_base + '_down_c') # 32
-  x4 = downsample(x3, 512, 4, name=name_base + '_down_d') # 16
-  x5 = downsample(x4, 512, 4, name=name_base + '_down_e') # 8
-  x6 = downsample(x5, 512, 4, name=name_base + '_down_f') # 4
-  x7 = downsample(x6, 512, 4, name=name_base + '_down_g') # 2
-  x8 = downsample(x7, 512, 4, name=name_base + '_down_h') # 1
-  # decode
-  x9 = gen_upsample(x8, x7, 512, 4, name=name_base + '_up_a', apply_dropout=True) # 2
-  x10 = gen_upsample(x9, x6, 512, 4, name=name_base + '_up_b', apply_dropout=True) # 4
-  x11 = gen_upsample(x10, x5, 512, 4, name=name_base + '_up_c', apply_dropout=True) # 8
-  x12 = gen_upsample(x11, x4, 512, 4, name=name_base + '_up_d') # 16
-  x13 = gen_upsample(x12, x3, 256, 4, name=name_base + '_up_e') # 32
-  x14 = gen_upsample(x13, x2, 128, 4, name=name_base + '_up_f') # 64
-  x15 = gen_upsample(x14, x1, 64, 4, name=name_base + '_up_g') # 128
-  x16 = KL.Conv2DTranspose(3, kernel_size=4,
-                          strides=2, padding='same', name=name_base + '_up_h',
-                          kernel_initializer=tf.initializers.random_normal(0, 0.02))(x15)
-  output = K.tanh(x16)
-  return output
+  def build_discriminator(self, name_base):
+    img = KL.Input(self.img_shape)
+    output = self.base.discriminator(img, name_base)
+    return KM.Model(img, output)
 
-print(K)
-
-# class CycleGAN():
+  def build_generator(self, name_base):
+    img = KL.Input(self.img_shape)
+    output = self.base.generator(img, name_base)
+    return KM.Model(img, output)
+  
+  def build_combined(self, gen1, gen2, disc):
+    img = KL.Input(shape=self.img_shape)
+    fake = gen1(img)
+    fake_fake = gen2(fake)
+    disc_out = disc(fake)
+    return KM.Model(img, [disc_out, fake_fake])
+  
+  def compile(self, learning_rate):
+    adam = keras.optimizers.Adam(learning_rate, 0.5)
+    self.disc_a.compile(loss='mse',
+      optimizer=adam, metrics=['accuracy'])
+    self.disc_b.compile(loss='mse',
+      optimizer=adam, metrics=['accuracy'])
+    # don't update discrimators during the training of generators
+    for layer in self.disc_a.layers:
+      layer.trainable = False
+    for layer in self.disc_b.layers:
+      layer.trainable = False
+    self.combined_a.compile(loss=['mse', 'mae'],
+      loss_weights=[1, 10], optimizer=adam)
+    self.combined_b.compile(loss=['mse', 'mae'],
+      loss_weights=[1, 10], optimizer=adam)
+  
+  def train(self, path_a, path_b, epochs=100, steps_per_epoch=100, batch_size=1, save_image_every=10):
+    print('Training starts...')
+    ones = np.ones((batch_size,) + self.base.DISC_OUTPUT_SIZE)
+    zeros = np.zeros((batch_size,) + self.base.DISC_OUTPUT_SIZE)
+    data_a = data_utils.get_train_dataset(path_a)
+    data_b = data_utils.get_train_dataset(path_b)
+    sess = tf.Session()
+    for epoch in range(epochs):
+      print('Epoch %d starts...' % epoch)
+      for step in range(steps_per_epoch):
+        start_time = time.time()
+        # get image
+        img_a = sess.run(data_a)
+        img_b = sess.run(data_b)
+        # generate images
+        fake_b = self.gen_a2b.predict(img_a)
+        fake_a = self.gen_b2a.predict(img_b)
+        # fake_fake_a = self.gen_b2a.predict(fake_b)
+        # fake_fake_b = self.gen_a2b.predict(fake_a)
+        # train discriminators
+        disc_a_loss_real = self.disc_a.train_on_batch(img_a, ones)
+        disc_a_loss_fake = self.disc_a.train_on_batch(fake_a, zeros)
+        disc_a_loss = 0.5 * np.add(disc_a_loss_fake, disc_a_loss_real)
+        disc_b_loss_real = self.disc_b.train_on_batch(img_b, ones)
+        disc_b_loss_fake = self.disc_b.train_on_batch(fake_b, zeros)
+        disc_b_loss = 0.5 * np.add(disc_b_loss_fake, disc_b_loss_real)
+        # train generators
+        gen_a_loss = self.combined_a.train_on_batch(img_a, [ones, img_a])
+        gen_b_loss = self.combined_b.train_on_batch(img_b, [ones, img_b])
+        # plot
+        print ("[Epoch %d/%d] [Batch %d/%d] [D_A loss: %f, acc: %3d%%] [D_B loss: %f, acc: %3d%%] [G_A loss: %f] [G_B loss: %f] time: %s" % (epoch, epochs,
+                step, steps_per_epoch,
+                disc_a_loss[0], 100*disc_a_loss[1],
+                disc_b_loss[0], 100*disc_b_loss[1],
+                gen_a_loss[0], gen_b_loss[0],
+                time.time() - start_time))
+        if step % save_image_every == 0:
+          clear_output(wait=True)
+          plt.figure(figsize=(15,15))
+          titles = ['Input A', 'Output A', 'Input B', 'Output B']
+          displays = [img_a, fake_b, img_b, fake_a]
+          for i in range(4):
+            plt.subplot(2, 2, i+1)
+            plt.title(titles[i])
+            display = displays[i][0]
+            # print(display.shape)
+            # print(displays[i].shape)
+            # print(np.min(display), np.max(display))
+            # getting the pixel values between [0, 1] to plot it.
+            plt.imshow(display * 0.5 + 0.5)
+            plt.axis('off')
+            plt.show()
