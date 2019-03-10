@@ -11,7 +11,7 @@ def get_train_dataset(path, batch_size=1, buffer_size=1000):
   return train_dataset.make_one_shot_iterator().get_next()
 
 def load_image(image_file, img_size=256, mode='train'):
-  print(image_file)
+  # print(image_file)
   assert mode in ['train', 'test']
   input_image = tf.read_file(image_file)
   input_image = tf.image.decode_jpeg(input_image, channels=3)
@@ -25,7 +25,7 @@ def load_image(image_file, img_size=256, mode='train'):
     # random cropping to 256 * 256 * 3
     input_image = tf.random_crop(input_image, size=[img_size, img_size, 3])
     input_image = (input_image / 127.5) - 1
-    print(input_image.shape) 
+    # print(input_image.shape) 
     return input_image
     
 #     if np.random.random() > 0.5:

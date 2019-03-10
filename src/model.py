@@ -8,7 +8,7 @@ import keras.layers as KL
 import keras.engine as KE
 import keras.models as KM
 import unet
-import original_net as original
+import resnet
 import time
 import data_utils
 import matplotlib.pyplot as plt
@@ -18,9 +18,9 @@ class CycleGAN():
 
   def __init__(self, mode='train', base='unet', img_size=256, verbose=False):
     assert mode in ['train', 'test']
-    assert base in ['unet', 'original']
+    assert base in ['unet', 'resnet']
     self.mode = mode
-    self.base = unet if base == 'unet' else original
+    self.base = unet if base == 'unet' else resnet
     self.img_shape = (img_size, img_size, 3)
     self.verbose = verbose
 
@@ -65,8 +65,10 @@ class CycleGAN():
   def compile(self, learning_rate):
     adam = keras.optimizers.Adam(learning_rate, 0.5)
     # n_disc_trainable = len(self.disc_a.trainable_weights)
+    # self.disc_a.compile(loss=keras.losses.binary_crossentropy,
     self.disc_a.compile(loss='mse', # keras.losses.binary_crossentropy,
       optimizer=adam, metrics=['accuracy'])
+    # self.disc_b.compile(loss=keras.losses.binary_crossentropy,
     self.disc_b.compile(loss='mse', # keras.losses.binary_crossentropy,
       optimizer=adam, metrics=['accuracy'])
     # don't update discrimators during the training of generators
@@ -76,8 +78,9 @@ class CycleGAN():
     #   layer.trainable = False
     self.disc_a.trainable = False
     self.disc_b.trainable = False
+    # self.combined.compile(loss=[keras.losses.binary_crossentropy, keras.losses.binary_crossentropy, 'mae', 'mae', 'mae', 'mae'],
     self.combined.compile(loss=['mse', 'mse', 'mae', 'mae', 'mae', 'mae'],
-      loss_weights=[1, 1, 10, 10, 1, 1], optimizer=adam)
+      loss_weights=[1, 1, 10, 10, 0.1, 0.1], optimizer=adam)
     # print(n_disc_trainable, len(self.disc_a._collected_trainable_weights))
     # print(len(self.combined._collected_trainable_weights), len(self.gen_a2b.trainable_weights))
   
@@ -88,8 +91,12 @@ class CycleGAN():
     print('Training starts...')
     # loading model
     if load_model:
+      self.disc_a.trainable = True
+      self.disc_b.trainable = True
       self.disc_a = KM.load_model(model_load_path + 'model-disc-a.h5')
       self.disc_b = KM.load_model(model_load_path + 'model-disc-b.h5')
+      self.disc_a.trainable = False
+      self.disc_b.trainable = False
       self.combined = KM.load_model(model_load_path + 'model-gan.h5')
       print('Loaded weights from', model_load_path)
     ones = np.ones((batch_size,) + self.base.DISC_OUTPUT_SIZE)
@@ -145,8 +152,12 @@ class CycleGAN():
             plt.show()
       # save model
       if epoch % save_model_every_epoch == 0:
+        self.disc_a.trainable = True
+        self.disc_b.trainable = True
         self.disc_a.save(model_save_path + 'model-disc-a.h5')
         self.disc_b.save(model_save_path + 'model-disc-b.h5')
+        self.disc_a.trainable = False
+        self.disc_b.trainable = False
         self.combined.save(model_save_path + 'model-gan.h5')
         print('Saved model for epoch', epoch+1)
 

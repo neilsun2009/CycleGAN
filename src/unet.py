@@ -47,14 +47,14 @@ def discriminator(x, name_base):
   # output = tf.pad(output, paddings) # 34
   output = KL.ZeroPadding2D(padding=((1, 1), (1, 1)))(output)
   output = KL.Conv2D(512, kernel_size=4,
-                            strides=1, padding='valid', use_bias=False,
+                            strides=1, padding='valid',
                             kernel_initializer=initializer)(output) # 31
   output = KL.BatchNormalization()(output)
   output = KL.LeakyReLU()(output)
   # padding same way
   # output = tf.pad(output, paddings) # 33
   output = KL.ZeroPadding2D(padding=((1, 1), (1, 1)))(output)
-  output = KL.Conv2D(1, kernel_size=4,
+  output = KL.Conv2D(1, kernel_size=4, activation="sigmoid",
                             strides=1, padding='valid',
                             kernel_initializer=initializer)(output) # 30
   # don't add a sigmoid activation here since
