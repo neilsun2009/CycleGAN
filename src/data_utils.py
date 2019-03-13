@@ -10,6 +10,12 @@ def get_train_dataset(path, batch_size=1, buffer_size=1000):
   train_dataset = train_dataset.batch(batch_size)
   return train_dataset.make_one_shot_iterator().get_next()
 
+def get_test_dataset(path, batch_size=1):
+  test_dataset = tf.data.Dataset.list_files(path)
+  test_dataset = test_dataset.map(lambda x: load_image(x, mode='test'))
+  test_dataset = test_dataset.batch(batch_size)
+  return test_dataset.make_one_shot_iterator().get_next()
+
 def load_image(image_file, img_size=256, mode='train'):
   # print(image_file)
   assert mode in ['train', 'test']
@@ -19,7 +25,7 @@ def load_image(image_file, img_size=256, mode='train'):
   if mode == 'train':
     # random jittering
     # resize to 286 * 286 * 3
-    input_image = tf.image.resize_images(input_image, [286, 286],
+    input_image = tf.image.resize_images(input_image, [img_size+30, img_size+30],
                                        align_corners=True,
                                        method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
     # random cropping to 256 * 256 * 3
