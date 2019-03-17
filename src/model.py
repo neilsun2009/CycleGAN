@@ -72,7 +72,7 @@ class CycleGAN():
     fake_out = disc(fake)
     return KM.Model([img, fake], [img_out, fake_out])
   
-  def compile(self, learning_rate):
+  def compile(self, learning_rate, cycle_loss_weight=10, identity_loss_weight=1):
     adam_disc_a = keras.optimizers.Adam(learning_rate, 0.5)
     adam_disc_b = keras.optimizers.Adam(learning_rate, 0.5)
     adam_gen = keras.optimizers.Adam(learning_rate, 0.5)
@@ -94,7 +94,8 @@ class CycleGAN():
     self.disc_b.trainable = False
     # self.combined.compile(loss=[keras.losses.binary_crossentropy, keras.losses.binary_crossentropy, 'mae', 'mae', 'mae', 'mae'],
     self.combined.compile(loss=[losses.mse, losses.mse, losses.mae, losses.mae, losses.mae, losses.mae],
-      loss_weights=[1, 1, 10, 10, 1, 1], optimizer=adam_gen)
+      loss_weights=[1, 1, cycle_loss_weight, cycle_loss_weight, identity_loss_weight, identity_loss_weight],
+      optimizer=adam_gen)
     # print(n_disc_trainable, len(self.disc_a._collected_trainable_weights))
     # print(len(self.combined._collected_trainable_weights), len(self.gen_a2b.trainable_weights))
 #     print(self.combined._collected_trainable_weights)
