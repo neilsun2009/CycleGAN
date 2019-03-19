@@ -10,6 +10,7 @@ import keras.engine as KE
 import keras.models as KM
 
 DISC_OUTPUT_SIZE = (16, 16, 1)
+DISC_2_OUTPUT_SIZE = (32, 32, 1)
 
 def downsample(x, filters, size, strides, name, apply_relu=True, apply_leaky=False, apply_batchnorm=True): # for both gen and disc
   initializer = keras.initializers.RandomNormal(0, 0.02)
@@ -46,7 +47,6 @@ def gen_upsample(x, filters, size, name, apply_dropout=False):
 def discriminator(x, name_base):
   initializer = keras.initializers.RandomNormal(0, 0.02)
   # like encode
-  # output = KL.Concatenate(axis=-1)([x, y]) # 256
   output = downsample(x, 64, 4, 2, name_base + '_a', apply_batchnorm=False, apply_leaky=True) # 128
   output = downsample(output, 128, 4, 2, name_base + '_b', apply_leaky=True) # 64
   output = downsample(output, 256, 4, 2, name_base + '_c', apply_leaky=True) # 32
@@ -54,6 +54,21 @@ def discriminator(x, name_base):
   output = KL.Conv2D(1, kernel_size=4, activation="sigmoid",
                             strides=1, padding='same',
                             kernel_initializer=initializer)(output) # 16
+  # print(output)
+  return output
+
+def discriminator_2(x, name_base):
+  initializer = keras.initializers.RandomNormal(0, 0.02)
+  # like encode
+#   output = KL.AveragePooling2D((2, 2))(x) # 128
+  output = downsample(x, 64, 4, 2, name_base + '_a', apply_batchnorm=False, apply_leaky=True) # 128
+  output = downsample(output, 128, 4, 2, name_base + '_b', apply_leaky=True) # 64
+  output = downsample(output, 256, 4, 2, name_base + '_c', apply_leaky=True) # 32
+#   output = downsample(output, 512, 4, 2, name_base + '_d', apply_leaky=True) # 16
+#   output = downsample(output, 1024, 4, 2, name_base + '_e', apply_leaky=True) # 8
+  output = KL.Conv2D(1, kernel_size=4, activation="sigmoid",
+                            strides=1, padding='same',
+                            kernel_initializer=initializer)(output) # 32
   # print(output)
   return output
 

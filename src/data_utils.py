@@ -5,7 +5,7 @@ import tensorflow as tf
 
 def get_train_dataset(path, batch_size=1, buffer_size=1000):
   train_dataset = tf.data.Dataset.list_files(path)
-  train_dataset = train_dataset.shuffle(buffer_size)
+  train_dataset = train_dataset.take(buffer_size).shuffle(buffer_size)
   train_dataset = train_dataset.map(lambda x: load_image(x)).repeat()
   train_dataset = train_dataset.batch(batch_size)
   return train_dataset.make_one_shot_iterator().get_next()

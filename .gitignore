@@ -6,3 +6,8 @@ dataset/summer2winter_yosemite/
 dataset/cat&dog/
 dataset/cat2dog/
 dataset/summer2winter_yosemite.zip
+dataset/vangogh2photo/
+models/
+output/
+**.pyc
+src/src.tar.gz

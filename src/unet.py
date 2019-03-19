@@ -10,6 +10,7 @@ import keras.engine as KE
 import keras.models as KM
 
 DISC_OUTPUT_SIZE = (30, 30, 1)
+DISC_2_OUTPUT_SIZE = (30, 30, 1)
 
 def downsample(x, filters, size, name, apply_batchnorm=True): # for both gen and disc
   initializer = keras.initializers.RandomNormal(0, 0.02)
@@ -17,7 +18,7 @@ def downsample(x, filters, size, name, apply_batchnorm=True): # for both gen and
                       strides=2, padding='same', use_bias=False,
                       kernel_initializer=initializer)(x)
   if apply_batchnorm:
-    output = KL.BatchNormalization()(output) # always use training mode
+    output = KL.BatchNormalization(momentum=0.9, epsilon=1e-5)(output, training=True) # always use training mode
   output = KL.LeakyReLU()(output)
   return output
 
@@ -26,7 +27,7 @@ def gen_upsample(x, x2, filters, size, name, apply_dropout=False):
   output = KL.Conv2DTranspose(filters, kernel_size=size,
                            strides=2, padding='same', use_bias=False, name=name,
                            kernel_initializer=initializer)(x)
-  output = KL.BatchNormalization()(output)
+  output = KL.BatchNormalization(momentum=0.9, epsilon=1e-5)(output, training=True)
   if apply_dropout:
     output = KL.Dropout(rate=0.5)(output) # always use training mode
   output = KL.ReLU()(output)
@@ -35,6 +36,34 @@ def gen_upsample(x, x2, filters, size, name, apply_dropout=False):
 
 # Patch GAN
 def discriminator(x, name_base):
+  initializer = keras.initializers.RandomNormal(0, 0.02)
+  # like encode
+  # output = KL.Concatenate(axis=-1)([x, y]) # 256
+  output = downsample(x, 64, 4, name_base + '_a', apply_batchnorm=False) # 128
+  output = downsample(output, 128, 4, name_base + '_b') # 64
+  output = downsample(output, 256, 4, name_base + '_c') # 32
+  # we are zero padding here with 1 because we need our shape to 
+  # go from (batch_size, 32, 32, 256) to (batch_size, 31, 31, 512)
+  # paddings = tf.constant([[0, 0], [1, 1], [1, 1], [0, 0]])
+  # output = tf.pad(output, paddings) # 34
+  output = KL.ZeroPadding2D(padding=((1, 1), (1, 1)))(output)
+  output = KL.Conv2D(512, kernel_size=4,
+                            strides=1, padding='valid',
+                            kernel_initializer=initializer)(output) # 31
+  output = KL.BatchNormalization()(output)
+  output = KL.LeakyReLU()(output)
+  # padding same way
+  # output = tf.pad(output, paddings) # 33
+  output = KL.ZeroPadding2D(padding=((1, 1), (1, 1)))(output)
+  output = KL.Conv2D(1, kernel_size=4, activation="sigmoid",
+                            strides=1, padding='valid',
+                            kernel_initializer=initializer)(output) # 30
+  # don't add a sigmoid activation here since
+  # the loss function expects raw logits.
+  # print(output)
+  return output
+
+def discriminator_2(x, name_base):
   initializer = keras.initializers.RandomNormal(0, 0.02)
   # like encode
   # output = KL.Concatenate(axis=-1)([x, y]) # 256
