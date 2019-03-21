@@ -7,6 +7,7 @@ dataset/cat&dog/
 dataset/cat2dog/
 dataset/summer2winter_yosemite.zip
 dataset/vangogh2photo/
+dataset/man2woman/
 models/
 output/
 **.pyc
