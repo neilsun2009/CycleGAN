@@ -10,10 +10,10 @@ Testing dataset - a baseline dataset
 # Git LFS
 ## Use Git LFS to upload datasets
 ### Install
-brew install git-lfs
-git lfs install
-(Go to the repo directory)
-git lfs track "*.zip"
+brew install git-lfs  
+git lfs install  
+(Go to the repo directory)  
+git lfs track "*.zip"  
 git add .gitattributes
 
 # Compression and Decompression of the Dataset (only if git lfs doesn't work)
