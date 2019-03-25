@@ -187,8 +187,9 @@ class CycleGAN():
     zeros = np.zeros((batch_size,) + self.base.DISC_OUTPUT_SIZE)
     ones_2 = np.ones((batch_size,) + self.base.DISC_2_OUTPUT_SIZE) * true_label_value
     zeros_2 = np.zeros((batch_size,) + self.base.DISC_2_OUTPUT_SIZE)
-    data_a = data_utils.get_train_dataset(path_a, batch_size)
-    data_b = data_utils.get_train_dataset(path_b, batch_size)
+    # dataset
+    data_a = data_utils.get_train_dataset(path_a, batch_size, buffer_size=steps_per_epoch)
+    data_b = data_utils.get_train_dataset(path_b, batch_size, buffer_size=steps_per_epoch)
     sess = tf.Session()
     # calculate lr linear decay value
     lr_decay = K.get_value(self.combined.optimizer.lr) / (epochs - decay_from)
