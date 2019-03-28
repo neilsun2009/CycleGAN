@@ -13,6 +13,16 @@ Follow the parameter descriptions in ```src/train.py```
 ## Test
 Follow the parameter descriptions in ```src/test.py```
 
+## Source code description
++ cycle_gan.ipynb: a jupyter notebook for training and testing
++ data_utils.py: data loader & preprocessor
++ losses.py: loss functions
++ model.py: model class, including building, compiling, training & testing
++ resnet.py: network structure using ResNet as proposed in the original paper
++ unet.py: network structure using U-Net as proposed in the pix2pix paper
++ train.py: standalone training script
++ test.py: standalone testing script
+
 ## Sample models & outputs
 In folder ```samples```.
 + cat_2_dog_cl3: baseline model for cat2dog, cycle loss weight=3|disc1 loss weight=0.5|disc2 loss weight=0.5, note a2b is dog2cat, b2a is cat2dog
