@@ -11,7 +11,7 @@ def get_train_dataset(path, batch_size=1, buffer_size=1000):
   return train_dataset.make_one_shot_iterator().get_next()
 
 def get_test_dataset(path, batch_size=1):
-  test_dataset = tf.data.Dataset.list_files(path)
+  test_dataset = tf.data.Dataset.list_files(path, shuffle=False)
   test_dataset = test_dataset.map(lambda x: load_image(x, mode='test'))
   test_dataset = test_dataset.batch(batch_size)
   return test_dataset.make_one_shot_iterator().get_next()
