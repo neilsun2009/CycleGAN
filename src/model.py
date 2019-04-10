@@ -121,7 +121,7 @@ class CycleGAN():
 #     print(self.combined._collected_trainable_weights)
   
   def test(self, img_path, model_path, is_a2b=True,
-      batch_size=1, image_save_path='../output/images/', show_image=True, show_image_every_step=50):
+      batch_size=1, image_save_path='../output/images/', show_image=True, show_image_every_step=50, plot_recon=True):
     print('Testing starts...')
     if show_image:
       from IPython.display import clear_output
@@ -148,15 +148,27 @@ class CycleGAN():
       else:
         fake = self.gen_b2a.predict(img)
         fake_fake = self.gen_a2b.predict(fake)
-      plt.figure(figsize=(15,15))
-      titles = ['Input', 'Output', 'Reconstructed']
-      displays = [img, fake, fake_fake]
-      for i in range(3):
-        plt.subplot(1, 3, i+1)
-        plt.title(titles[i])
-        display = displays[i][0]
-        plt.imshow(display * 0.5 + 0.5)
-        plt.axis('off')
+      if plot_recon:
+        plt.figure(figsize=(10,6))
+        titles = ['Input', 'Output', 'Reconstructed']
+        displays = [img, fake, fake_fake]
+        for i in range(3):
+          plt.subplot(1, 3, i+1)
+          plt.title(titles[i])
+          display = displays[i][0]
+          plt.imshow(display * 0.5 + 0.5)
+          plt.axis('off')
+      else:
+        plt.figure(figsize=(10,6))
+        titles = ['Input', 'Output']
+        displays = [img, fake]
+        for i in range(2):
+          plt.subplot(1, 2, i+1)
+          plt.title(titles[i])
+          display = displays[i][0]
+          plt.imshow(display * 0.5 + 0.5)
+          plt.axis('off')
+
       plt.savefig('%s%d.jpg' % (image_save_path, img_num+1))
       if show_image and img_num % show_image_every_step == 0:
         clear_output(wait=True)
