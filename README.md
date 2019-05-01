@@ -23,6 +23,8 @@ Follow the parameter descriptions in ```src/test.py```
 + unet.py: network structure using U-Net as proposed in the pix2pix paper
 + train.py: standalone training script
 + test.py: standalone testing script
++ video2jpg.py: video and image conversion
++ videotest.py: video conversion testing script
 
 ## Sample models & outputs
 In folder ```samples```.
